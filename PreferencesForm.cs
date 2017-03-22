@@ -150,5 +150,10 @@ namespace pl.polidea.lab.Web_Page_Screensaver
 
             lbUrls.Items.Add(url);
         }
+
+        private void cbCloseOnActivity_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

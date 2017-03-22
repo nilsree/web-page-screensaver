@@ -19,18 +19,32 @@ namespace pl.polidea.lab.Web_Page_Screensaver
         private GlobalUserEventHandler userEventHandler;
         private bool shuffleOrder;
         private string[] urls;
+        private int ActivityCounter = 0;
+        private DateTime lastActivityDateTime = DateTime.Now;
+        private int ScreenNumber;
+        public volatile bool shutdown = false;
+        private int ScreenIndex = 0;
+
 
         [ThreadStatic]
         private static Random random;
 
-        public ScreensaverForm()
+        public ScreensaverForm(int scrn)
         {
             userEventHandler = new GlobalUserEventHandler();
             userEventHandler.Event += new GlobalUserEventHandler.UserEvent(HandleUserActivity);
 
             InitializeComponent();
 
+            Bounds = Screen.AllScreens[scrn].Bounds;
+            ScreenIndex = scrn;
+
             Cursor.Hide();
+
+            while (shutdown)
+            {
+                Close();
+            }
         }
 
         public string[] Urls
@@ -50,33 +64,35 @@ namespace pl.polidea.lab.Web_Page_Screensaver
 
         private void ScreensaverForm_Load(object sender, EventArgs e)
         {
-            if (Urls.Length > 1)
-            {
-                RegistryKey reg = Registry.CurrentUser.CreateSubKey(Program.KEY);
+            currentSiteIndex = currentSiteIndex + ScreenIndex;
 
-                // Shuffle the URLs if necessary
-                shuffleOrder = Boolean.Parse((string)reg.GetValue(PreferencesForm.RANDOMIZE_PREF, PreferencesForm.RANDOMIZE_PREF_DEFAULT));
-                if (shuffleOrder)
-                {
-                    random = new Random();
+            //if (Urls.Length > ScreenIndex+1)
+            //{
+            //    RegistryKey reg = Registry.CurrentUser.CreateSubKey(Program.KEY);
 
-                    int n = urls.Length;
-                    while (n > 1)
-                    {
-                        n--;
-                        int k = random.Next(n + 1);
-                        var value = urls[k];
-                        urls[k] = urls[n];
-                        urls[n] = value;
-                    }
-                }
+            //    // Shuffle the URLs if necessary
+            //    shuffleOrder = Boolean.Parse((string)reg.GetValue(PreferencesForm.RANDOMIZE_PREF, PreferencesForm.RANDOMIZE_PREF_DEFAULT));
+            //    if (shuffleOrder)
+            //    {
+            //        random = new Random();
 
-                // Set up timer to rotate to the next URL
-                timer = new Timer();
-                timer.Interval = int.Parse((string)reg.GetValue(PreferencesForm.INTERVAL_PREF, PreferencesForm.INTERVAL_PREF_DEFAULT)) * 1000;
-                timer.Tick += (s, ee) => RotateSite();
-                timer.Start();
-            }
+            //        int n = urls.Length;
+            //        while (n > 1)
+            //        {
+            //            n--;
+            //            int k = random.Next(n + 1);
+            //            var value = urls[k];
+            //            urls[k] = urls[n];
+            //            urls[n] = value;
+            //        }
+            //    }
+
+            //    // Set up timer to rotate to the next URL
+            //    timer = new Timer();
+            //    timer.Interval = int.Parse((string)reg.GetValue(PreferencesForm.INTERVAL_PREF, PreferencesForm.INTERVAL_PREF_DEFAULT)) * 1000;
+            //    timer.Tick += (s, ee) => RotateSite();
+            //    timer.Start();
+            //}
 
             // Display the first site in the list
             RotateSite();
@@ -108,7 +124,7 @@ namespace pl.polidea.lab.Web_Page_Screensaver
 
             if (currentSiteIndex >= Urls.Length)
             {
-                currentSiteIndex = 0;
+                currentSiteIndex = Urls.Length - 1;
             }
 
             var url = Urls[currentSiteIndex];
@@ -124,7 +140,21 @@ namespace pl.polidea.lab.Web_Page_Screensaver
 
             if (Boolean.Parse((string)reg.GetValue(PreferencesForm.CLOSE_ON_ACTIVITY_PREF, PreferencesForm.CLOSE_ON_ACTIVITY_PREF_DEFAULT)))
             {
+                if (ActivityCounter < 10)
+                {
+                    var secondsSinceLastActivity = (lastActivityDateTime - DateTime.Now).TotalSeconds;
+                    if (secondsSinceLastActivity > 10)
+                    {
+                        ActivityCounter = 1;
+                        return;
+                    }
+
+                    ActivityCounter++;
+                    lastActivityDateTime = DateTime.Now;
+                    return;
+                }
                 Close();
+                shutdown = true;
             }
             else
             {
@@ -138,6 +168,7 @@ namespace pl.polidea.lab.Web_Page_Screensaver
         private void closeButton_Click(object sender, EventArgs e)
         {
             Close();
+            shutdown = true;
         }
     }
 
